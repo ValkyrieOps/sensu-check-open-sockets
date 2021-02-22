@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
+	"github.com/sensu-community/sensu-plugin-sdk/sensu"
+	"github.com/sensu/sensu-go/types"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strconv"
-	"io/ioutil"
 	"strings"
-	"github.com/sensu-community/sensu-plugin-sdk/sensu"
-	"github.com/sensu/sensu-go/types"
 )
 
 // Config represents the check plugin config.
@@ -28,25 +28,25 @@ var (
 	}
 
 	options = []*sensu.PluginConfigOption{
-                &sensu.PluginConfigOption{
-                        Path:      "warn",
-                        Env:       "CHECK_WARN",
-                        Argument:  "warn",
-                        Shorthand: "w",
-                        Default:   10,
-                        Usage:     "Warning threshold - count of open sockets required for warning state",
-                        Value:     &plugin.Warn,
-                },
-                &sensu.PluginConfigOption{
-                        Path:      "crit",
-                        Env:       "CHECK_CRITICAL",
-                        Argument:  "crit",
-                        Shorthand: "c",
-                        Default:   20,
-                        Usage:     "Critical threshold - count of open sockets required for critical state",
-                        Value:     &plugin.Crit,
-                },
-        }
+		&sensu.PluginConfigOption{
+			Path:      "warn",
+			Env:       "CHECK_WARN",
+			Argument:  "warn",
+			Shorthand: "w",
+			Default:   10,
+			Usage:     "Warning threshold - count of open sockets required for warning state",
+			Value:     &plugin.Warn,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "crit",
+			Env:       "CHECK_CRITICAL",
+			Argument:  "crit",
+			Shorthand: "c",
+			Default:   20,
+			Usage:     "Critical threshold - count of open sockets required for critical state",
+			Value:     &plugin.Crit,
+		},
+	}
 )
 
 func main() {
@@ -55,29 +55,28 @@ func main() {
 }
 
 func checkArgs(event *types.Event) (int, error) {
-        if plugin.Warn == 0 {
-                return sensu.CheckStateWarning, fmt.Errorf("--warn or CHECK_WARN must be greater than zero")
-        }
-        return sensu.CheckStateOK, nil
+	if plugin.Warn == 0 {
+		return sensu.CheckStateWarning, fmt.Errorf("--warn or CHECK_WARN must be greater than zero")
+	}
+	return sensu.CheckStateOK, nil
 
-        if plugin.Warn > plugin.Crit {
-                return sensu.CheckStateWarning, fmt.Errorf("--crit or CHECK_CRITICAL must be greater than warning")
-        }
-        return sensu.CheckStateOK, nil
+	if plugin.Warn > plugin.Crit {
+		return sensu.CheckStateWarning, fmt.Errorf("--crit or CHECK_CRITICAL must be greater than warning")
+	}
+	return sensu.CheckStateOK, nil
 }
 
 func handleError(err error) {
-        if err != nil {
-                fmt.Println(err)
-                os.Exit(1)
-        }
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func executeCheck(event *types.Event) (int, error) {
 	get_sockets := exec.Command("ss", "-s")
 	get_head := exec.Command("head", "-1")
 	awk_sockets := exec.Command("awk", "{print $2}")
-
 
 	get_head.Stdin, _ = get_sockets.StdoutPipe()
 	awk_sockets.Stdin, _ = get_head.StdoutPipe()
@@ -94,7 +93,6 @@ func executeCheck(event *types.Event) (int, error) {
 	socket_count, _ := ioutil.ReadAll(stdout)
 	sockets, _ := strconv.Atoi(strings.TrimSuffix(string(socket_count), "\n"))
 
-
 	if sockets >= plugin.Warn && sockets < plugin.Crit {
 		fmt.Println("WARNING\nOpen Sockets:", sockets)
 		return sensu.CheckStateWarning, nil
@@ -105,6 +103,5 @@ func executeCheck(event *types.Event) (int, error) {
 		fmt.Println("OK\nOpen Sockets:", sockets)
 		return sensu.CheckStateOK, nil
 	}
-
 
 }
